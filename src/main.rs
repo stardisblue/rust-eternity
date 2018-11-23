@@ -1,12 +1,13 @@
 #[allow(unused)]
-mod board;
-mod solver;
-
-use board::BoardGame;
-
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+
+mod board;
+mod crawler;
+mod solver;
+
+use board::BoardGame;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
