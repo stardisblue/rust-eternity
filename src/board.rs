@@ -32,17 +32,15 @@ impl BoardGame {
 
         for i in 0..size {
             for j in 0..size {
-                match (i, j) {
-                    (i, j) if (i == 0 || i == last_index) && (j == 0 || j == last_index) => {
-                        cells[i as usize][j as usize] = Some(Cell::CornerCell(None));
+                cells[i as usize][j as usize] = Some(
+                    if (i == 0 || i == last_index) && (j == 0 || j == last_index) {
+                        Cell::CornerCell(None)
+                    } else if i == 0 || i == last_index || j == 0 || j == last_index {
+                        Cell::BorderCell(None)
+                    } else {
+                        Cell::FullCell(None)
                     }
-                    (i, j) if i == 0 || i == last_index || j == 0 || j == last_index => {
-                        cells[i as usize][j as usize] = Some(Cell::BorderCell(None));
-                    }
-                    (i, j) => {
-                        cells[i as usize][j as usize] = Some(Cell::FullCell(None));
-                    }
-                };
+                );
             }
         }
 
