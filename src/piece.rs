@@ -5,21 +5,6 @@ pub enum Piece {
     FullPiece(Props<Full>),
 }
 
-#[derive(Debug, Clone)]
-pub struct Props<T> {
-    id: u8,
-    kind: T,
-}
-
-#[derive(Debug, Clone)]
-pub struct Corner(u8, u8);
-
-#[derive(Debug, Clone)]
-pub struct Border(u8, u8, u8);
-
-#[derive(Debug, Clone)]
-pub struct Full(u8, u8, u8, u8);
-
 impl Piece {
     pub fn from_vec(id: u8, vec: Vec<u8>) -> Self {
         match vec.as_slice() {
@@ -39,3 +24,18 @@ impl Piece {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct Props<T> {
+    id: u8,
+    kind: T,
+}
+
+#[derive(Debug, Clone)]
+pub struct Corner(u8, u8);
+
+#[derive(Debug, Clone)]
+pub struct Border(u8, u8, u8);
+
+#[derive(Debug, Clone)]
+pub struct Full(u8, u8, u8, u8);

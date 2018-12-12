@@ -39,10 +39,9 @@ impl BoardGame {
                     (i, j) if i == 0 || i == last_index || j == 0 || j == last_index => {
                         cells[i as usize][j as usize] = Some(Cell::BorderCell(None));
                     }
-                    (i, j) if i != 0 || j != 0 || i != last_index || j != last_index => {
+                    (i, j) => {
                         cells[i as usize][j as usize] = Some(Cell::FullCell(None));
                     }
-                    _ => unreachable!(),
                 };
             }
         }
