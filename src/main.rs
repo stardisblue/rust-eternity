@@ -4,10 +4,9 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 mod board;
-mod crawler;
-mod solver;
+mod piece;
 
-use board::BoardGame;
+use board::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -25,16 +24,6 @@ fn main() {
         contents.push(line.expect("could not read line"))
     }
 
-    let mut board_game = BoardGame::new(contents);
-    println!("{:#?}", board_game.pieces[4]);
-
-    board_game
-        .pieces
-        .get_mut(4)
-        .expect("out of bounds")
-        .rotate(board::Rotate::Half);
-    println!("{:#?}", board_game.pieces[4]);
-
-    board_game.cells[2][2].put(board_game.pieces[4].id);
+    let board_game = BoardGame::new(contents);
     println!("{:#?}", board_game);
 }
