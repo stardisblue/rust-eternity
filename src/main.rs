@@ -13,7 +13,6 @@ fn main() {
 
     let filename = &args[1];
 
-    // --snip--
     println!("In file {}", filename);
 
     let file = File::open(filename).expect("file not found");
@@ -24,6 +23,12 @@ fn main() {
         contents.push(line.expect("could not read line"))
     }
 
-    let board_game = BoardGame::new(contents);
-    println!("{:#?}", board_game);
+    let mut board_game = BoardGame::new(contents);
+    board_game.put_piece(12, (1, 1), Some(Compass::East));
+    println!("{:#?}", board_game.cells[1][1]);
+    board_game.put_piece(3, (0, 0), None);
+    println!("{:#?}", board_game.cells[0][0]);
+
+    board_game.remove_piece((1, 1));
+    println!("{:#?}", board_game.cells[1][1]);
 }
