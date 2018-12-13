@@ -5,7 +5,7 @@ use piece::Piece;
 pub struct BoardGame {
     pieces: Vec<Piece>,
     placed: Vec<bool>,
-    cells: Vec<Vec<Option<Cell>>>,
+    cells: Vec<Vec<Cell>>,
 }
 
 impl BoardGame {
@@ -27,21 +27,23 @@ impl BoardGame {
 
         let placed = vec![false; (size as usize) * (size as usize)];
 
-        let mut cells = vec![vec![None; size as usize]; size as usize];
         let last_index = size - 1;
-
+        
+        let mut cells = Vec::with_capacity(size as usize);
         for i in 0..size {
+            let mut row = Vec::with_capacity(size as usize);
             for j in 0..size {
-                cells[i as usize][j as usize] = Some(
+                row.push(
                     if (i == 0 || i == last_index) && (j == 0 || j == last_index) {
                         Cell::CornerCell(None)
                     } else if i == 0 || i == last_index || j == 0 || j == last_index {
                         Cell::BorderCell(None)
                     } else {
                         Cell::FullCell(None)
-                    }
+                    },
                 );
             }
+            cells.push(row);
         }
 
         Self {
