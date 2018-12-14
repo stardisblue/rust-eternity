@@ -37,7 +37,7 @@ impl BoardGame {
 
         let last_index = size - 1;
 
-        use Borders::{East, North, South, West};
+        use Border::{East, North, South, West};
 
         let mut cells = Vec::with_capacity(size as usize);
         for x in 0..size {
@@ -149,15 +149,104 @@ impl BoardGame {
 
 #[derive(Debug)]
 pub enum Cell {
-    CornerCell(Option<piece::Props>, (Borders, Borders)),
-    BorderCell(Option<piece::Props>, Borders),
+    CornerCell(Option<piece::Props>, (Border, Border)),
+    BorderCell(Option<piece::Props>, Border),
     FullCell(Option<piece::Props>, Option<Compass>),
 }
 
+impl Cell {
+    pub fn get_face(&self, side: Border) -> Face {
+        use piece::{Props, Sides};
+        match self {
+            Cell::CornerCell(
+                Some(Props {
+                    kind: Sides::Corner(a, b),
+                    ..
+                }),
+                borders,
+            ) => Cell::get_face_corner(side, a, b, borders),
+            Cell::BorderCell(
+                Some(Props {
+                    kind: Sides::Border(a, b, c),
+                    ..
+                }),
+                border,
+            ) => Cell::get_face_border(side, a, b, c, border),
+            Cell::FullCell(Some(_props), Some(_compass)) => Face::None,
+            _ => Face::None, // No pieces on it :)
+        }
+    }
+
+    fn get_face_corner(side: Border, a: &u8, b: &u8, borders: &(Border, Border)) -> Face {
+        match side {
+            Border::North => match borders {
+                (Border::North, _) => Face::Border,
+                (Border::South, Border::West) => Face::Color(*a),
+                (Border::South, Border::East) => Face::Color(*b),
+                _ => panic!("something went terribly wrong sir :("),
+            },
+            Border::East => match borders {
+                (_, Border::East) => Face::Border,
+                (Border::North, Border::West) => Face::Color(*a),
+                (Border::South, Border::West) => Face::Color(*b),
+                _ => panic!("something went terribly wrong sir :("),
+            },
+            Border::South => match borders {
+                (Border::South, _) => Face::Border,
+                (Border::North, Border::East) => Face::Color(*a),
+                (Border::North, Border::West) => Face::Color(*b),
+                _ => panic!("something went terribly wrong sir :("),
+            },
+            Border::West => match borders {
+                (_, Border::West) => Face::Border,
+                (Border::South, Border::East) => Face::Color(*a),
+                (Border::North, Border::East) => Face::Color(*b),
+                _ => panic!("something went terribly wrong sir :("),
+            },
+        }
+    }
+
+    fn get_face_border(side: Border, a: &u8, b: &u8, c: &u8, border: &Border) -> Face {
+        match side {
+            Border::North => match border {
+                Border::North => Face::Border,
+                Border::East => Face::Color(*c),
+                Border::South => Face::Color(*b),
+                Border::West => Face::Color(*a),
+            },
+            Border::East => match border {
+                Border::North => Face::Color(*a),
+                Border::East => Face::Border,
+                Border::South => Face::Color(*c),
+                Border::West => Face::Color(*b),
+            },
+            Border::South => match border {
+                Border::North => Face::Color(*b),
+                Border::East => Face::Color(*a),
+                Border::South => Face::Border,
+                Border::West => Face::Color(*c),
+            },
+            Border::West => match border {
+                Border::North => Face::Color(*c),
+                Border::East => Face::Color(*b),
+                Border::South => Face::Color(*a),
+                Border::West => Face::Border,
+            },
+        }
+    }
+}
+
 #[derive(Debug)]
-pub enum Borders {
+pub enum Border {
     North,
     East,
     South,
     West,
+}
+
+#[derive(Debug, Clone)]
+pub enum Face {
+    Border,
+    None,
+    Color(u8),
 }
