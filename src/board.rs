@@ -3,6 +3,7 @@ use piece::Piece;
 
 #[derive(Debug)]
 pub struct BoardGame {
+    pub size: u8,
     pub pieces: Vec<Piece>,
     pub placed: Vec<bool>,
     pub cells: Vec<Vec<Cell>>,
@@ -31,7 +32,8 @@ impl BoardGame {
                         .map(|nb| nb.parse::<u8>().expect("must be a number"))
                         .collect(),
                 )
-            }).collect();
+            })
+            .collect();
 
         let placed = vec![false; (size as usize) * (size as usize)];
 
@@ -76,10 +78,34 @@ impl BoardGame {
         }
 
         Self {
+            size,
             pieces,
             placed,
             cells,
         }
+    }
+
+    pub fn get_frontier(&self, pos: (u8, u8)) -> (Face, Face, Face, Face) {
+        let (x, y) = pos;
+        let last_index = self.size - 1;
+        (
+            match x {
+                0 => Face::Border,
+                _ => self.cells[y as usize][(x - 1) as usize].get_face(Border::South),
+            },
+            match y {
+                a if a == last_index => Face::Border,
+                _ => self.cells[(y + 1) as usize][x as usize].get_face(Border::West),
+            },
+            match x {
+                a if a == last_index => Face::Border,
+                _ => self.cells[y as usize][(x + 1) as usize].get_face(Border::North),
+            },
+            match y {
+                0 => Face::Border,
+                _ => self.cells[(y - 1) as usize][x as usize].get_face(Border::East),
+            },
+        )
     }
 
     pub fn put_piece(&mut self, index: u8, pos: (u8, u8), compass: Option<Compass>) {
@@ -91,7 +117,7 @@ impl BoardGame {
         let piece = self.pieces[index as usize].clone();
         self.placed[index as usize] = true;
         match self.cells[y as usize][x as usize] {
-            Cell::CornerCell(ref mut a, (_, _)) => match a {
+            Cell::CornerCell(ref mut a, _) => match a {
                 Some(_) => panic!("already a piece placed at ({},{})", x, y),
                 None => match piece {
                     Piece::FullPiece(_) => panic!("cannot put full piece on corner cell"),
@@ -172,7 +198,13 @@ impl Cell {
                 }),
                 border,
             ) => Cell::get_face_border(side, a, b, c, border),
-            Cell::FullCell(Some(_props), Some(_compass)) => Face::None,
+            Cell::FullCell(
+                Some(Props {
+                    kind: Sides::Full(a, b, c, d),
+                    ..
+                }),
+                Some(compass),
+            ) => Cell::get_face_full(side, a, b, c, d, compass),
             _ => Face::None, // No pieces on it :)
         }
     }
@@ -234,6 +266,35 @@ impl Cell {
             },
         }
     }
+
+    fn get_face_full(side: Border, a: &u8, b: &u8, c: &u8, d: &u8, orientation: &Compass) -> Face {
+        match side {
+            Border::North => match orientation {
+                Compass::North => Face::Color(*a),
+                Compass::East => Face::Color(*d),
+                Compass::South => Face::Color(*c),
+                Compass::West => Face::Color(*b),
+            },
+            Border::East => match orientation {
+                Compass::North => Face::Color(*b),
+                Compass::East => Face::Color(*a),
+                Compass::South => Face::Color(*d),
+                Compass::West => Face::Color(*c),
+            },
+            Border::South => match orientation {
+                Compass::North => Face::Color(*c),
+                Compass::East => Face::Color(*b),
+                Compass::South => Face::Color(*a),
+                Compass::West => Face::Color(*d),
+            },
+            Border::West => match orientation {
+                Compass::North => Face::Color(*d),
+                Compass::East => Face::Color(*c),
+                Compass::South => Face::Color(*b),
+                Compass::West => Face::Color(*a),
+            },
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -249,4 +310,16 @@ pub enum Face {
     Border,
     None,
     Color(u8),
+}
+
+#[cfg(test)]
+mod tests {
+    use BoardGame;
+    #[test]
+    fn create_board() {
+        let file_content = "4\n5\n1\n1 1 1 1\n0 0 1 1\n0 0 1 2\n0 0 2 1\n0 0 2 2\n0 1 3 1\n0 1 3 2\n0 1 4 1\n0 1 5 2\n0 2 4 1\n0 2 4 2\n0 2 5 1\n0 2 5 2\n3 3 5 5\n3 4 3 5\n3 4 4 4\n3 5 5 4".to_string();
+
+        let board = BoardGame::new(file_content.lines().map(|line| line.to_string()).collect());
+        unimplemented!()
+    }
 }
