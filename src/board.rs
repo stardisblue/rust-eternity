@@ -1,5 +1,6 @@
 use piece;
 use piece::Piece;
+use cell::{Cell, Border, Face};
 
 #[derive(Debug)]
 pub struct BoardGame {
@@ -9,7 +10,7 @@ pub struct BoardGame {
     pub cells: Vec<Vec<Cell>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Compass {
     North,
     East,
@@ -39,7 +40,7 @@ impl BoardGame {
 
         let last_index = size - 1;
 
-        use Border::{East, North, South, West};
+        use cell::Border::{East, North, South, West};
 
         let mut cells = Vec::with_capacity(size as usize);
         for x in 0..size {
@@ -173,153 +174,80 @@ impl BoardGame {
     }
 }
 
-#[derive(Debug)]
-pub enum Cell {
-    CornerCell(Option<piece::Props>, (Border, Border)),
-    BorderCell(Option<piece::Props>, Border),
-    FullCell(Option<piece::Props>, Option<Compass>),
-}
-
-impl Cell {
-    pub fn get_face(&self, side: Border) -> Face {
-        use piece::{Props, Sides};
-        match self {
-            Cell::CornerCell(
-                Some(Props {
-                    kind: Sides::Corner(a, b),
-                    ..
-                }),
-                borders,
-            ) => Cell::get_face_corner(side, a, b, borders),
-            Cell::BorderCell(
-                Some(Props {
-                    kind: Sides::Border(a, b, c),
-                    ..
-                }),
-                border,
-            ) => Cell::get_face_border(side, a, b, c, border),
-            Cell::FullCell(
-                Some(Props {
-                    kind: Sides::Full(a, b, c, d),
-                    ..
-                }),
-                Some(compass),
-            ) => Cell::get_face_full(side, a, b, c, d, compass),
-            _ => Face::None, // No pieces on it :)
-        }
-    }
-
-    fn get_face_corner(side: Border, a: &u8, b: &u8, borders: &(Border, Border)) -> Face {
-        match side {
-            Border::North => match borders {
-                (Border::North, _) => Face::Border,
-                (Border::South, Border::West) => Face::Color(*a),
-                (Border::South, Border::East) => Face::Color(*b),
-                _ => panic!("something went terribly wrong sir :("),
-            },
-            Border::East => match borders {
-                (_, Border::East) => Face::Border,
-                (Border::North, Border::West) => Face::Color(*a),
-                (Border::South, Border::West) => Face::Color(*b),
-                _ => panic!("something went terribly wrong sir :("),
-            },
-            Border::South => match borders {
-                (Border::South, _) => Face::Border,
-                (Border::North, Border::East) => Face::Color(*a),
-                (Border::North, Border::West) => Face::Color(*b),
-                _ => panic!("something went terribly wrong sir :("),
-            },
-            Border::West => match borders {
-                (_, Border::West) => Face::Border,
-                (Border::South, Border::East) => Face::Color(*a),
-                (Border::North, Border::East) => Face::Color(*b),
-                _ => panic!("something went terribly wrong sir :("),
-            },
-        }
-    }
-
-    fn get_face_border(side: Border, a: &u8, b: &u8, c: &u8, border: &Border) -> Face {
-        match side {
-            Border::North => match border {
-                Border::North => Face::Border,
-                Border::East => Face::Color(*c),
-                Border::South => Face::Color(*b),
-                Border::West => Face::Color(*a),
-            },
-            Border::East => match border {
-                Border::North => Face::Color(*a),
-                Border::East => Face::Border,
-                Border::South => Face::Color(*c),
-                Border::West => Face::Color(*b),
-            },
-            Border::South => match border {
-                Border::North => Face::Color(*b),
-                Border::East => Face::Color(*a),
-                Border::South => Face::Border,
-                Border::West => Face::Color(*c),
-            },
-            Border::West => match border {
-                Border::North => Face::Color(*c),
-                Border::East => Face::Color(*b),
-                Border::South => Face::Color(*a),
-                Border::West => Face::Border,
-            },
-        }
-    }
-
-    fn get_face_full(side: Border, a: &u8, b: &u8, c: &u8, d: &u8, orientation: &Compass) -> Face {
-        match side {
-            Border::North => match orientation {
-                Compass::North => Face::Color(*a),
-                Compass::East => Face::Color(*d),
-                Compass::South => Face::Color(*c),
-                Compass::West => Face::Color(*b),
-            },
-            Border::East => match orientation {
-                Compass::North => Face::Color(*b),
-                Compass::East => Face::Color(*a),
-                Compass::South => Face::Color(*d),
-                Compass::West => Face::Color(*c),
-            },
-            Border::South => match orientation {
-                Compass::North => Face::Color(*c),
-                Compass::East => Face::Color(*b),
-                Compass::South => Face::Color(*a),
-                Compass::West => Face::Color(*d),
-            },
-            Border::West => match orientation {
-                Compass::North => Face::Color(*d),
-                Compass::East => Face::Color(*c),
-                Compass::South => Face::Color(*b),
-                Compass::West => Face::Color(*a),
-            },
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Border {
-    North,
-    East,
-    South,
-    West,
-}
-
-#[derive(Debug, Clone)]
-pub enum Face {
-    Border,
-    None,
-    Color(u8),
-}
-
 #[cfg(test)]
 mod tests {
-    use BoardGame;
-    #[test]
-    fn create_board() {
+    use super::*;
+    fn create_board() -> BoardGame {
         let file_content = "4\n5\n1\n1 1 1 1\n0 0 1 1\n0 0 1 2\n0 0 2 1\n0 0 2 2\n0 1 3 1\n0 1 3 2\n0 1 4 1\n0 1 5 2\n0 2 4 1\n0 2 4 2\n0 2 5 1\n0 2 5 2\n3 3 5 5\n3 4 3 5\n3 4 4 4\n3 5 5 4".to_string();
 
-        let board = BoardGame::new(file_content.lines().map(|line| line.to_string()).collect());
-        unimplemented!()
+        BoardGame::new(file_content.lines().map(|line| line.to_string()).collect())
+    }
+
+    #[test]
+    fn test_create_board() {
+        let board = tests::create_board();
+        let last: usize = (board.size - 1) as usize;
+
+        assert_eq!(board.size, 4);
+        assert_eq!(board.pieces.len(), 16);
+        assert_eq!(board.cells.len(), 4);
+
+        assert_eq!(
+            board.cells[0][0],
+            Cell::CornerCell(None, (Border::North, Border::West))
+        );
+        assert_eq!(
+            board.cells[0][last],
+            Cell::CornerCell(None, (Border::North, Border::East))
+        );
+        assert_eq!(
+            board.cells[last][0],
+            Cell::CornerCell(None, (Border::South, Border::West))
+        );
+        assert_eq!(
+            board.cells[last][last],
+            Cell::CornerCell(None, (Border::South, Border::East))
+        );
+
+        // Borders
+        for i in 1..(last - 1) {
+            assert_eq!(board.cells[0][i], Cell::BorderCell(None, Border::North));
+            assert_eq!(board.cells[i][0], Cell::BorderCell(None, Border::West));
+            assert_eq!(board.cells[last][i], Cell::BorderCell(None, Border::South));
+            assert_eq!(board.cells[i][last], Cell::BorderCell(None, Border::East));
+        }
+
+        //Center
+
+        for i in 1..(last - 1) {
+            for j in 1..(last - 1) {
+                assert_eq!(board.cells[i][j], Cell::FullCell(None, None));
+            }
+        }
+
+        // #Pieces
+        use piece::Piece;
+        assert_eq!(
+            board.pieces,
+            vec![
+                Piece::from_vec(0, vec![0, 0, 1, 1]),
+                Piece::from_vec(1, vec![0, 0, 1, 2]),
+                Piece::from_vec(2, vec![0, 0, 2, 1]),
+                Piece::from_vec(3, vec![0, 0, 2, 2]),
+                Piece::from_vec(4, vec![0, 1, 3, 1]),
+                Piece::from_vec(5, vec![0, 1, 3, 2]),
+                Piece::from_vec(6, vec![0, 1, 4, 1]),
+                Piece::from_vec(7, vec![0, 1, 5, 2]),
+                Piece::from_vec(8, vec![0, 2, 4, 1]),
+                Piece::from_vec(9, vec![0, 2, 4, 2]),
+                Piece::from_vec(10, vec![0, 2, 5, 1]),
+                Piece::from_vec(11, vec![0, 2, 5, 2]),
+                Piece::from_vec(12, vec![3, 3, 5, 5]),
+                Piece::from_vec(13, vec![3, 4, 3, 5]),
+                Piece::from_vec(14, vec![3, 4, 4, 4]),
+                Piece::from_vec(15, vec![3, 5, 5, 4]),
+
+            ]
+        );
     }
 }

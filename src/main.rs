@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 mod board;
+mod cell;
 mod piece;
 
 use board::*;
