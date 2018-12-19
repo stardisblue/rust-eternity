@@ -1,6 +1,6 @@
+use cell::{Border, Cell, Face};
 use piece;
 use piece::Piece;
-use cell::{Cell, Border, Face};
 
 #[derive(Debug)]
 pub struct BoardGame {
@@ -90,21 +90,21 @@ impl BoardGame {
         let (x, y) = pos;
         let last_index = self.size - 1;
         (
-            match x {
-                0 => Face::Border,
-                _ => self.cells[y as usize][(x - 1) as usize].get_face(Border::South),
-            },
             match y {
-                a if a == last_index => Face::Border,
-                _ => self.cells[(y + 1) as usize][x as usize].get_face(Border::West),
+                0 => Face::Border,
+                _ => self.cells[(y - 1) as usize][x as usize].get_face(Border::South),
             },
             match x {
                 a if a == last_index => Face::Border,
-                _ => self.cells[y as usize][(x + 1) as usize].get_face(Border::North),
+                _ => self.cells[y as usize][(x + 1) as usize].get_face(Border::West),
             },
             match y {
+                a if a == last_index => Face::Border,
+                _ => self.cells[(y + 1) as usize][x as usize].get_face(Border::North),
+            },
+            match x {
                 0 => Face::Border,
-                _ => self.cells[(y - 1) as usize][x as usize].get_face(Border::East),
+                _ => self.cells[y as usize][(x - 1) as usize].get_face(Border::East),
             },
         )
     }
@@ -118,39 +118,31 @@ impl BoardGame {
         let piece = self.pieces[index as usize].clone();
         self.placed[index as usize] = true;
         match self.cells[y as usize][x as usize] {
-            Cell::CornerCell(ref mut a, _) => match a {
-                Some(_) => panic!("already a piece placed at ({},{})", x, y),
-                None => match piece {
-                    Piece::FullPiece(_) => panic!("cannot put full piece on corner cell"),
-                    Piece::BorderPiece(_) => panic!("cannot put border piece on corner cell"),
+            Cell::CornerCell(ref mut a @ None, _) => match piece {
+                Piece::FullPiece(_) => panic!("cannot put full piece on corner cell"),
+                Piece::BorderPiece(_) => panic!("cannot put border piece on corner cell"),
 
-                    Piece::CornerPiece(props) => *a = Some(props),
-                },
+                Piece::CornerPiece(props) => *a = Some(props),
             },
-            Cell::BorderCell(ref mut a, _) => match a {
-                Some(_) => panic!("already a piece placed at ({},{})", x, y),
-                None => match piece {
-                    Piece::CornerPiece(_) => panic!("cannot put corner piece on border cell"),
-                    Piece::FullPiece(_) => panic!("cannot put full piece on border cell"),
+            Cell::BorderCell(ref mut a @ None, _) => match piece {
+                Piece::CornerPiece(_) => panic!("cannot put corner piece on border cell"),
+                Piece::FullPiece(_) => panic!("cannot put full piece on border cell"),
 
-                    Piece::BorderPiece(props) => *a = Some(props),
-                },
+                Piece::BorderPiece(props) => *a = Some(props),
             },
-            Cell::FullCell(ref mut a, ref mut facing) => match a {
-                Some(_) => panic!("already a piece placed at ({},{})", x, y),
-                None => match piece {
-                    Piece::CornerPiece(_) => panic!("cannot put corner piece on full cell"),
-                    Piece::BorderPiece(_) => panic!("cannot put border piece on full cell"),
+            Cell::FullCell(ref mut a @ None, ref mut facing) => match piece {
+                Piece::CornerPiece(_) => panic!("cannot put corner piece on full cell"),
+                Piece::BorderPiece(_) => panic!("cannot put border piece on full cell"),
 
-                    Piece::FullPiece(props) => {
-                        *a = Some(props);
-                        *facing = match compass {
-                            None => panic!("no facing specified for full piece placement"),
-                            _ => compass,
-                        };
-                    }
-                },
+                Piece::FullPiece(props) => {
+                    *a = Some(props);
+                    *facing = match compass {
+                        None => panic!("no facing specified for full piece placement"),
+                        _ => compass,
+                    };
+                }
             },
+            _ => panic!("already a piece placed at ({},{})", x, y),
         }
     }
 
@@ -246,8 +238,169 @@ mod tests {
                 Piece::from_vec(13, vec![3, 4, 3, 5]),
                 Piece::from_vec(14, vec![3, 4, 4, 4]),
                 Piece::from_vec(15, vec![3, 5, 5, 4]),
-
             ]
+        );
+    }
+
+    #[test]
+    fn test_put_remove_piece() {
+        let mut board = self::create_board();
+
+        board.put_piece(0, (0, 0), None);
+        match &board.cells[0][0] {
+            Cell::CornerCell(Some(props), _) => assert_eq!(
+                *props,
+                piece::Props {
+                    id: 0,
+                    kind: piece::Sides::Corner(1, 1)
+                }
+            ),
+            _ => assert!(false),
+        }
+
+        board.put_piece(4, (0, 1), None);
+        match &board.cells[1][0] {
+            Cell::BorderCell(Some(props), _) => assert_eq!(
+                *props,
+                piece::Props {
+                    id: 4,
+                    kind: piece::Sides::Border(1, 3, 1)
+                }
+            ),
+            _ => assert!(false),
+        }
+
+        board.put_piece(13, (1, 1), Some(Compass::North));
+        match &board.cells[1][1] {
+            Cell::FullCell(Some(props), Some(Compass::North)) => assert_eq!(
+                *props,
+                piece::Props {
+                    id: 13,
+                    kind: piece::Sides::Full(3, 4, 3, 5)
+                }
+            ),
+            _ => assert!(false),
+        }
+
+        board.remove_piece((0, 0));
+        match &board.cells[0][0] {
+            Cell::CornerCell(None, _) => (),
+            _ => assert!(false),
+        }
+
+        board.remove_piece((0, 1));
+        match &board.cells[1][0] {
+            Cell::BorderCell(None, _) => (),
+            _ => assert!(false),
+        }
+
+        board.remove_piece((1, 1));
+        match &board.cells[1][1] {
+            Cell::FullCell(None, None) => (),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_put_piece_position_panic() {
+        let mut board = self::create_board();
+
+        board.put_piece(0, (0, 0), None);
+        board.put_piece(1, (0, 0), None);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_put_piece_same_panic() {
+        let mut board = self::create_board();
+        let size = board.size - 1;
+        board.put_piece(0, (0, 0), None);
+        board.put_piece(0, (0, size - 1), None);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_put_piece_full_corner_panic() {
+        let mut board = self::create_board();
+
+        board.put_piece(14, (0, 0), Some(Compass::North));
+    }
+    #[test]
+    #[should_panic]
+    fn test_put_piece_border_corner_panic() {
+        let mut board = self::create_board();
+
+        board.put_piece(4, (0, 0), None);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_put_piece_corner_border_panic() {
+        let mut board = self::create_board();
+
+        board.put_piece(0, (1, 0), None);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_put_piece_full_border_panic() {
+        let mut board = self::create_board();
+
+        board.put_piece(14, (1, 0), Some(Compass::North));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_put_piece_corner_full_panic() {
+        let mut board = self::create_board();
+
+        board.put_piece(3, (1, 1), None);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_put_piece_border_full_panic() {
+        let mut board = self::create_board();
+
+        board.put_piece(4, (1, 1), None);
+    }
+
+    #[test]
+    fn test_frontier() {
+        let mut board = self::create_board();
+        let size = board.size - 1;
+        board.put_piece(0, (0, 0), None);
+        board.put_piece(4, (size, 1), None);
+        board.put_piece(15, (1, 1), Some(Compass::North));
+
+        assert_eq!(
+            board.get_frontier((1, 0)),
+            (Face::Border, Face::None, Face::Color(3), Face::Color(1)),
+        );
+        assert_eq!(
+            board.get_frontier((size, 0)),
+            (Face::Border, Face::Border, Face::Color(1), Face::None)
+        );
+        assert_eq!(
+            board.get_frontier((1, 2)),
+            (Face::Color(5), Face::None, Face::None, Face::None)
+        );
+        assert_eq!(
+            board.get_frontier((2, 2)),
+            (Face::None, Face::None, Face::None, Face::None)
+        );
+
+        board.remove_piece((1, 1));
+        board.put_piece(15, (1, 1), Some(Compass::South));
+
+        assert_eq!(
+            board.get_frontier((1, 0)),
+            (Face::Border, Face::None, Face::Color(5), Face::Color(1)),
+        );
+        assert_eq!(
+            board.get_frontier((1, 2)),
+            (Face::Color(3), Face::None, Face::None, Face::None)
         );
     }
 }
