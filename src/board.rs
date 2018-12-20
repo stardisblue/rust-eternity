@@ -86,6 +86,11 @@ impl BoardGame {
         }
     }
 
+    /// Returns the current neighborhood of the given position
+    ///
+    /// # Panics
+    ///
+    /// if the retrieved cells have some kind of errors (ex: bad piece <-> cell allocation)
     pub fn get_frontier(&self, pos: (u8, u8)) -> (Face, Face, Face, Face) {
         let (x, y) = pos;
         let last_index = self.size - 1;
@@ -109,6 +114,19 @@ impl BoardGame {
         )
     }
 
+    /// Puts a piece on the board
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// board.put_piece(1, (0, 0), None);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// - the piece is already placed somewhere else
+    /// - the piece is not the same type as the cell
+    /// - there is already a piece placed at this position
     pub fn put_piece(&mut self, index: u8, pos: (u8, u8), compass: Option<Compass>) {
         if self.placed[index as usize] {
             panic!("this piece ({}) is already placed ", index)
@@ -143,6 +161,27 @@ impl BoardGame {
                 }
             },
             _ => panic!("already a piece placed at ({},{})", x, y),
+        }
+    }
+
+    /// Rotates an already placed piece
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// board.put_piece(13, (1,1), Some(Compass::North));
+    /// board.rotate((1,1), Compass:South);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// - there is no piece at this position
+    /// - the piece cannot be rotated (corner or border cell)
+    pub fn rotate_piece(&mut self, pos: (u8, u8), compass: Compass) {
+        let (x, y) = pos;
+        match self.cells[y as usize][x as usize] {
+            Cell::FullCell(Some(_), Some(ref mut a)) => *a = compass,
+            _ => panic!("cannot rotate empty/border/corner cell"),
         }
     }
 
@@ -402,5 +441,46 @@ mod tests {
             board.get_frontier((1, 2)),
             (Face::Color(3), Face::None, Face::None, Face::None)
         );
+    }
+
+    #[test]
+    fn test_rotate_piece() {
+        let mut board = self::create_board();
+        board.put_piece(14, (1, 1), Some(Compass::North));
+
+        match &board.cells[1][1] {
+            Cell::FullCell(Some(_), Some(compass)) => assert_eq!(compass, &Compass::North),
+            _ => panic!("should have a piece"),
+        }
+
+        board.rotate_piece((1, 1), Compass::South);
+
+        match &board.cells[1][1] {
+            Cell::FullCell(Some(_), Some(compass)) => assert_eq!(compass, &Compass::South),
+            _ => panic!("should have a piece"),
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_rotate_piece_corner_panic() {
+        let mut board = self::create_board();
+        board.put_piece(0, (0, 0), None);
+        board.rotate_piece((0, 0), Compass::North)
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_rotate_piece_border_panic() {
+        let mut board = self::create_board();
+        board.put_piece(5, (1, 0), None);
+        board.rotate_piece((1, 0), Compass::North)
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_rotate_piece_empty_panic() {
+        let mut board = self::create_board();
+        board.rotate_piece((1, 1), Compass::North)
     }
 }
