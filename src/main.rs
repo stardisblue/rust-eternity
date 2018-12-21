@@ -1,4 +1,4 @@
-#[allow(unused)]
+#![allow(dead_code)]
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -25,9 +25,11 @@ fn main() {
     }
 
     let mut board_game = BoardGame::new(contents);
-    board_game.put_piece(12, (1, 1), Some(Compass::East));
+    board_game
+        .put_piece(12, (1, 1), Some(Compass::East))
+        .unwrap();
     println!("{:#?}", board_game.cells[1][1]);
-    board_game.put_piece(3, (0, 0), None);
+    board_game.put_piece(3, (0, 0), None).unwrap();
     println!("{:#?}", board_game.cells[0][0]);
 
     board_game.remove_piece((1, 1));

@@ -1,4 +1,3 @@
-use self::Border::{East, North, South, West};
 use board::Compass;
 use piece::{Props, Sides};
 
@@ -10,31 +9,121 @@ pub enum Cell {
 }
 
 impl Cell {
-    pub fn get_face(&self, side: Border) -> Face {
+    pub fn get_faces(&self) -> (Face, Face, Face, Face) {
         match self {
-            Cell::CornerCell(option_prop, borders) => {
-                Cell::get_face_corner(side, option_prop, borders)
+            Cell::CornerCell(props, borders) => Cell::get_faces_corner(props, borders),
+            Cell::BorderCell(props, border) => Cell::get_faces_border(props, border),
+            Cell::FullCell(props, compass) => Cell::get_faces_full(props, compass),
+        }
+    }
+
+    fn get_faces_corner(
+        props: &Option<Props>,
+        borders: &(Border, Border),
+    ) -> (Face, Face, Face, Face) {
+        use self::Border::{East, North, South, West};
+
+        let compass = Sides::get_corner_offset(borders);
+
+        match props {
+            Some(Props {
+                kind: Sides::Corner(a, b),
+                ..
+            }) => Sides::get_faces_corner(compass, a, b),
+            None => {
+                let (ns, we) = borders;
+                (
+                    if *ns == North {
+                        Face::Border
+                    } else {
+                        Face::None
+                    },
+                    if *we == East {
+                        Face::Border
+                    } else {
+                        Face::None
+                    },
+                    if *ns == South {
+                        Face::Border
+                    } else {
+                        Face::None
+                    },
+                    if *we == West {
+                        Face::Border
+                    } else {
+                        Face::None
+                    },
+                )
             }
-            Cell::BorderCell(option_prop, border) => {
-                Cell::get_face_border(side, option_prop, border)
-            }
-            Cell::FullCell(
+            _ => panic!("piece is not matching corner cell"),
+        }
+    }
+
+    fn get_faces_border(props: &Option<Props>, border: &Border) -> (Face, Face, Face, Face) {
+        use self::Border::{East, North, South, West};
+
+        let compass = Sides::get_border_offset(border);
+
+        match props {
+            Some(Props {
+                kind: Sides::Border(a, b, c),
+                ..
+            }) => Sides::get_faces_border(compass, a, b, c),
+            None => (
+                if *border == North {
+                    Face::Border
+                } else {
+                    Face::None
+                },
+                if *border == East {
+                    Face::Border
+                } else {
+                    Face::None
+                },
+                if *border == South {
+                    Face::Border
+                } else {
+                    Face::None
+                },
+                if *border == West {
+                    Face::Border
+                } else {
+                    Face::None
+                },
+            ),
+            _ => panic!("piece cannot be placed on corner cell"),
+        }
+    }
+
+    fn get_faces_full(
+        props: &Option<Props>,
+        compass: &Option<Compass>,
+    ) -> (Face, Face, Face, Face) {
+        match compass {
+            Some(compass) => match props {
                 Some(Props {
                     kind: Sides::Full(a, b, c, d),
                     ..
-                }),
-                Some(compass),
-            ) => Cell::get_face_full(side, a, b, c, d, compass),
-            Cell::FullCell(None, None) => Face::None,
-            _ => panic!("Bad cell <=> piece allocation"), // No pieces on it :)
+                }) => Sides::get_faces_full(compass, a, b, c, d),
+                _ => panic!("Not a full piece"),
+            },
+            None => match props {
+                None => (Face::None, Face::None, Face::None, Face::None),
+                _ => panic!("doesn't have a compass"),
+            },
+        }
+    }
+
+    pub fn get_face(&self, side: Border) -> Face {
+        match self {
+            Cell::CornerCell(props, borders) => Cell::get_face_corner(side, props, borders),
+            Cell::BorderCell(props, border) => Cell::get_face_border(side, props, border),
+            Cell::FullCell(props, compass) => Cell::get_face_full(side, props, compass),
         }
     }
 
     fn get_face_corner(side: Border, props: &Option<Props>, borders: &(Border, Border)) -> Face {
-        if !((borders.0 == North || borders.0 == South) && (borders.1 == West || borders.1 == East))
-        {
-            panic!("wrong border assignations")
-        }
+        let offset = Sides::get_corner_offset(borders);
 
         if side == borders.0 || side == borders.1 {
             return Face::Border;
@@ -44,34 +133,15 @@ impl Cell {
             Some(Props {
                 kind: Sides::Corner(a, b),
                 ..
-            }) => match side {
-                North => match borders {
-                    (South, West) => Face::Color(*a),
-                    (South, East) => Face::Color(*b),
-                    _ => panic!("something went terribly wrong sir :("),
-                },
-                East => match borders {
-                    (North, West) => Face::Color(*a),
-                    (South, West) => Face::Color(*b),
-                    _ => panic!("something went terribly wrong sir :("),
-                },
-                South => match borders {
-                    (North, East) => Face::Color(*a),
-                    (North, West) => Face::Color(*b),
-                    _ => panic!("something went terribly wrong sir :("),
-                },
-                West => match borders {
-                    (South, East) => Face::Color(*a),
-                    (North, East) => Face::Color(*b),
-                    _ => panic!("something went terribly wrong sir :("),
-                },
-            },
+            }) => Sides::get_face_corner(side, offset, a, b),
             None => Face::None,
-            _ => panic!("Corner cell does not contain a corner piece"),
+            _ => unreachable!(),
         }
     }
 
     fn get_face_border(side: Border, props: &Option<Props>, border: &Border) -> Face {
+        let offset = Sides::get_border_offset(border);
+
         if side == *border {
             return Face::Border;
         }
@@ -80,62 +150,24 @@ impl Cell {
             Some(Props {
                 kind: Sides::Border(a, b, c),
                 ..
-            }) => match side {
-                North => match border {
-                    East => Face::Color(*c),
-                    South => Face::Color(*b),
-                    West => Face::Color(*a),
-                    _ => unreachable!(),
-                },
-                East => match border {
-                    North => Face::Color(*a),
-                    South => Face::Color(*c),
-                    West => Face::Color(*b),
-                    _ => unreachable!(),
-                },
-                South => match border {
-                    North => Face::Color(*b),
-                    East => Face::Color(*a),
-                    West => Face::Color(*c),
-                    _ => unreachable!(),
-                },
-                West => match border {
-                    North => Face::Color(*c),
-                    East => Face::Color(*b),
-                    South => Face::Color(*a),
-                    _ => unreachable!(),
-                },
-            },
+            }) => Sides::get_face_border(side, offset, a, b, c),
             None => Face::None,
-            _ => panic!("border cell does not contain a border piece"),
+            _ => unreachable!(),
         }
     }
 
-    fn get_face_full(side: Border, a: &u8, b: &u8, c: &u8, d: &u8, orientation: &Compass) -> Face {
-        match side {
-            North => match orientation {
-                Compass::North => Face::Color(*a),
-                Compass::East => Face::Color(*d),
-                Compass::South => Face::Color(*c),
-                Compass::West => Face::Color(*b),
+    fn get_face_full(side: Border, props: &Option<Props>, compass: &Option<Compass>) -> Face {
+        match compass {
+            Some(compass) => match props {
+                Some(Props {
+                    kind: Sides::Full(a, b, c, d),
+                    ..
+                }) => Sides::get_face_full(side, compass, a, b, c, d),
+                _ => panic!("this full cell does not contain the same type of piece"),
             },
-            East => match orientation {
-                Compass::North => Face::Color(*b),
-                Compass::East => Face::Color(*a),
-                Compass::South => Face::Color(*d),
-                Compass::West => Face::Color(*c),
-            },
-            South => match orientation {
-                Compass::North => Face::Color(*c),
-                Compass::East => Face::Color(*b),
-                Compass::South => Face::Color(*a),
-                Compass::West => Face::Color(*d),
-            },
-            West => match orientation {
-                Compass::North => Face::Color(*d),
-                Compass::East => Face::Color(*c),
-                Compass::South => Face::Color(*b),
-                Compass::West => Face::Color(*a),
+            None => match props {
+                None => Face::None,
+                _ => panic!("this cell cannot have a compass without a piece"),
             },
         }
     }
@@ -159,6 +191,8 @@ pub enum Face {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use self::Border::{East, North, South, West};
+
     #[test]
     fn test_empty_corner_faces() {
         let corner_cell = Cell::CornerCell(None, (North, West));
