@@ -10,7 +10,7 @@ pub struct BoardGame {
     pub cells: Vec<Vec<Cell>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Compass {
     North,
     East,
@@ -119,21 +119,29 @@ impl BoardGame {
     ///
     /// # Returns
     ///
-    /// `Some` if the piece cannot be placed.
+    /// `Err` if the piece cannot be placed.
     pub fn place_piece(
         &mut self,
         piece: u8,
         pos: (u8, u8),
         compass: Option<Compass>,
     ) -> Result<(), &'static str> {
-        let frontier = self.get_frontier(pos);
         let (x, y) = pos;
-        let cell = &self.cells[y as usize][x as usize];
-        let piece_props = match &self.pieces[piece as usize] {
-            Piece::CornerPiece(ref props) => props,
-            Piece::BorderPiece(ref props) => props,
-            Piece::FullPiece(ref props) => props,
-        };
+        let internal_orientation = self.cells[y as usize][x as usize]
+            .get_compass()
+            .or(compass)
+            .expect("should have a compass");
+
+        let (a, b, c, d) = self.pieces[piece as usize].get_faces(&internal_orientation);
+        let (a_check, b_check, c_check, d_check) = self.get_frontier(pos);
+
+        if (a_check == a || a_check == Face::None)
+            && (b_check == b || b_check == Face::None)
+            && (c_check == c || c_check == Face::None)
+            && (d_check == d || d_check == Face::None)
+        {
+            return self.put_piece(piece, pos, compass);
+        }
 
         //let piece_borders = cell.get_faces(piece_props, compass);
         //if frontier == piece {
@@ -141,7 +149,7 @@ impl BoardGame {
         //} else {
         //    Err("borders do not match")
         //}
-        Ok(())
+        Err("cannot put piece at this position")
     }
 
     /// Puts a piece on the board, it does not check if the piece can be placed depending on its neighbors.
@@ -152,7 +160,7 @@ impl BoardGame {
     /// board.put_piece(1, (0, 0), None);
     /// ```
     ///
-    /// Returns `Some` if
+    /// Returns `Err` if
     ///
     /// - the piece is already placed somewhere else
     /// - the piece is not the same type as the cell
@@ -168,7 +176,7 @@ impl BoardGame {
         }
 
         let (x, y) = pos;
-        let piece = self.pieces[index as usize].clone();
+        let piece = self.pieces[index as usize];
         match self.cells[y as usize][x as usize] {
             Cell::CornerCell(ref mut a @ None, _) => match piece {
                 Piece::FullPiece(_) => Err("cannot put full piece on corner cell"),
@@ -228,7 +236,7 @@ impl BoardGame {
         let (x, y) = pos;
         match self.cells[y as usize][x as usize] {
             Cell::FullCell(Some(_), Some(ref mut a)) => *a = compass,
-            _ => panic!("cannot rotate empty/border/corner cell"),
+            _ => panic!("cannot rotate empty/corner/border cell"),
         }
     }
 
@@ -337,6 +345,31 @@ mod tests {
                 Piece::new(15, vec![3, 5, 5, 4]),
             ]
         );
+    }
+
+    #[test]
+    fn test_place_piece() {
+        let mut board = self::create_board();
+        assert_eq!(board.place_piece(0, (0, 0), None), Ok(()));
+        assert_eq!(board.place_piece(4, (0, 1), None), Ok(()));
+        assert_eq!(
+            board.place_piece(5, (1, 0), None),
+            Err("cannot put piece at this position")
+        );
+        assert_eq!(board.place_piece(6, (1, 0), None), Ok(()));
+        assert_eq!(
+            board.place_piece(14, (1, 1), Some(Compass::North)),
+            Err("cannot put piece at this position")
+        );
+        assert_eq!(board.place_piece(14, (1, 1), Some(Compass::West)), Ok(()));
+    }
+
+    #[test]
+    #[should_panic(expected = "should have a compass")]
+    fn test_place_piece_panic() {
+        let mut board = self::create_board();
+
+        board.place_piece(14, (1, 1), None).unwrap();
     }
 
     #[test]
@@ -500,7 +533,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "cannot rotate empty/corner/border cell")]
     fn test_rotate_piece_corner_panic() {
         let mut board = self::create_board();
         board.put_piece(0, (0, 0), None).unwrap();
@@ -508,7 +541,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "cannot rotate empty/corner/border cell")]
     fn test_rotate_piece_border_panic() {
         let mut board = self::create_board();
         board.put_piece(5, (1, 0), None).unwrap();
@@ -516,7 +549,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "cannot rotate empty/corner/border cell")]
     fn test_rotate_piece_empty_panic() {
         let mut board = self::create_board();
         board.rotate_piece((1, 1), Compass::North)

@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Piece {
     CornerPiece(Props),
     BorderPiece(Props),
@@ -20,9 +20,27 @@ impl Piece {
             _ => unreachable!(),
         }
     }
+
+    pub fn get_faces(&self, offset: &Compass) -> (Face, Face, Face, Face) {
+        match self {
+            Piece::CornerPiece(Props {
+                kind: Sides::Corner(a, b),
+                ..
+            }) => Sides::get_faces_corner(offset, a, b),
+            Piece::BorderPiece(Props {
+                kind: Sides::Border(a, b, c),
+                ..
+            }) => Sides::get_faces_border(offset, a, b, c),
+            Piece::FullPiece(Props {
+                kind: Sides::Full(a, b, c, d),
+                ..
+            }) => Sides::get_faces_full(offset, a, b, c, d),
+            _ => panic!("bad piece <=> props association"),
+        }
+    }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Props {
     pub id: u8,
     pub kind: Sides,
@@ -34,7 +52,7 @@ impl Props {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Sides {
     Corner(u8, u8),
     Border(u8, u8, u8),
@@ -45,22 +63,22 @@ use board::Compass;
 use cell::{Border, Face};
 
 impl Sides {
-    pub fn get_corner_offset(borders: &(Border, Border)) -> &Compass {
+    pub fn get_corner_offset(borders: &(Border, Border)) -> Compass {
         match borders {
-            (Border::North, Border::West) => &Compass::East,
-            (Border::North, Border::East) => &Compass::South,
-            (Border::South, Border::East) => &Compass::West,
-            (Border::South, Border::West) => &Compass::North,
-            _ => panic!("Not a correct borders for corner"),
+            (Border::North, Border::West) => Compass::East,
+            (Border::North, Border::East) => Compass::South,
+            (Border::South, Border::East) => Compass::West,
+            (Border::South, Border::West) => Compass::North,
+            _ => panic!("Not correct borders for corner"),
         }
     }
 
-    pub fn get_border_offset(border: &Border) -> &Compass {
+    pub fn get_border_offset(border: &Border) -> Compass {
         match border {
-            Border::North => &Compass::East,
-            Border::East => &Compass::South,
-            Border::South => &Compass::West,
-            Border::West => &Compass::North,
+            Border::North => Compass::East,
+            Border::East => Compass::South,
+            Border::South => Compass::West,
+            Border::West => Compass::North,
         }
     }
 
@@ -110,14 +128,8 @@ impl Sides {
         }
     }
 
-    pub fn get_faces_full(
-        offset: &Compass,
-        a: &u8,
-        b: &u8,
-        c: &u8,
-        d: &u8,
-    ) -> (Face, Face, Face, Face) {
-        match offset {
+    pub fn get_faces_full(o: &Compass, a: &u8, b: &u8, c: &u8, d: &u8) -> (Face, Face, Face, Face) {
+        match o {
             Compass::North => (
                 Face::Color(*a),
                 Face::Color(*b),
@@ -242,7 +254,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "unreachable")]
     fn test_create_panic() {
         Piece::new(1, vec![0, 0, 0, 0]);
     }
